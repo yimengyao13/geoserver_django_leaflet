@@ -1,0 +1,84 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+	<title>leaflet根据name删除数据</title>
+	<meta charset="utf-8" />
+	<link rel="stylesheet" href="{% static 'leaflet.css'%}">
+    <script src="{% static 'leaflet-src.js'%}"></script>
+    <script src="{% static 'draw_files/jquery-1.7.2.js'%}"></script>
+    <script src="{% static 'draw_files/jquery.cookie.js'%}"></script>
+	<style>
+		html, body {
+			height: 100%;
+			margin: 0;
+		}
+		#map {
+			width: 100%;
+			height: 100%;
+		}
+	</style>
+</head>
+<body>
+<label>name:</label>
+<input type='input' type='text' id='name'>
+<input type='button' id='btn' value='确定'>
+<div id='map'></div>
+<script>
+	//线上线下访问url不同，可变配置提出
+    var baseurl ='http://127.0.0.1:5000/';
+	var map = L.map('map').setView([39.909921,116.381948],12);
+	L.tileLayer('http://webrd01.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scale=1&style=8', {
+		maxZoom: 24,
+	}).addTo(map);
+	wmsOptions = {
+		layers: 'community_price',
+		format: 'image/png',
+		transparent: true,
+		// 查询函数
+		// CQL_FILTER : "name='太阳宫'"
+	}
+	var wmsLayer = L.tileLayer.wms('http://127.0.0.1:5000/getwmts?', wmsOptions).addTo(map);
+	// 点击按钮，根据fid删除要素
+	$("#btn").click(function() {
+		var name = $("#name").val();
+		var gml_txt = '<?xml version="1.0" encoding="GBK"?>\n\
+		<wfs:Transaction service="WFS" version="1.0.0"\n\
+  xmlns:cdf="http://www.opengis.net/cite/data"\n\
+  xmlns:ogc="http://www.opengis.net/ogc"\n\
+  xmlns:wfs="http://www.opengis.net/wfs"\n\
+  xmlns:topp="http://www.openplans.org/topp">\n\
+  <wfs:Delete typeName="fangjia:community_price">\n\
+    <ogc:Filter>\n\
+      <ogc:PropertyIsEqualTo>\n\
+        <ogc:PropertyName>community_price:name</ogc:PropertyName>\n\
+        <ogc:Literal>'+name+'</ogc:Literal>\n\
+      </ogc:PropertyIsEqualTo>\n\
+    </ogc:Filter>\n\
+  </wfs:Delete>\n\
+</wfs:Transaction>\n\
+'
+        console.log(gml_txt);
+        // 上传到geoserver
+        $.ajax({
+            type: 'POST',
+            url: '/postgml',
+            headers: {"X-CSRFToken": $.cookie('csrftoken')},  // 从Cookie取csrftoken，并设置到请求头中
+            {#contentType:'application/json',#}
+            data: {'gml':gml_txt},
+            {#dataType: 'json',#}
+            success: function(data){
+                console.log(data);
+                map.removeLayer(wmsLayer);
+                map.addLayer(wmsLayer);
+            },
+            error:function(data){
+                console.log(data);
+                map.removeLayer(wmsLayer);
+                map.addLayer(wmsLayer);
+            }
+        });
+	})
+</script>
+</body>
+</html>

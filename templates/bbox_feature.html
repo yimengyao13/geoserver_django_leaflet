@@ -1,0 +1,75 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+	<title>leaflet点击渲染geojson</title>
+	<meta charset="utf-8" />
+	<link rel="stylesheet" href="{% static 'leaflet.css'%}">
+    <script src="{% static 'leaflet-src.js'%}"></script>
+    <script src="{% static 'jquery-1.7.2.js'%}"></script>
+	<style>
+		html, body {
+			height: 100%;
+			margin: 0;
+		}
+		#map {
+			width: 100%;
+			height: 100%;
+		}
+	</style>
+</head>
+<body>
+<div id='map'></div>
+<script>
+	//线上线下访问url不同，可变配置提出
+    var baseurl ='http://127.0.0.1:5000/';
+	var map = L.map('map').setView([39.909921,116.381948],12);
+	L.tileLayer('http://webrd01.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scale=1&style=8', {
+		maxZoom: 24,
+	}).addTo(map);
+	wmsOptions = {
+		layers: 'community_price',
+		format: 'image/png',
+		transparent: true,
+		// 查询函数
+		// CQL_FILTER : "name='太阳宫'"
+	}
+	var wmsLayer = L.tileLayer.wms('http://127.0.0.1:5000/getwmts?', wmsOptions).addTo(map);
+	// 点击地图，渲染要素
+	map.on('click', function(ev) {
+		// 构造BBOX，拼接请求url
+		var latlng = ev.latlng;
+		var d_gree = 0.0001;
+		var min_lng = latlng['lng']-d_gree;
+		var max_lng = latlng['lng']+d_gree;
+		var min_lat = latlng['lat']-d_gree;
+		var max_lat = latlng['lat']+d_gree;
+		var feature_url = baseurl +'feature?request=GetFeature&version=1.1.0&typeName=fangjia:community_price&outputFormat=application/json&BBOX=' +min_lng + ',' +min_lat+','+max_lng+','+max_lat+',EPSG:4326';
+		// 单击地图，获取geojson，渲染要素
+        $.ajax(
+            {
+                url:feature_url,
+                type:'GET',
+                dataType:'json',
+                headers:{'Content-Type':'application/json;charset=utf8'},
+                success:function(data){
+                	console.log(data);
+                	L.geoJSON(data, {
+					    style: {'color': "#000000",
+							    	'fillColor': "#ffffff",
+					    			'opacity': 0.7,
+					    			'weight': 5,
+					    }
+
+				}).addTo(map);
+                },
+                error:function(data){
+                    console.log('faile');
+                    console.log(data);
+                }
+            }
+        );
+	});
+</script>
+</body>
+</html>

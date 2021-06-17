@@ -1,0 +1,174 @@
+{% load static %}
+<!DOCTYPE html>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>Leaflet绘制修改页面</title>
+
+    <script src="{% static 'draw_files/leaflet-src.js'%}"></script>
+    <link rel="stylesheet" href="{% static 'draw_files/leaflet.css'%}">
+
+    <script src="{% static 'draw_files/Leaflet.draw.js'%}"></script>
+    <script src="{% static 'draw_files/Leaflet.Draw.Event.js'%}"></script>
+    <link rel="stylesheet" href="{% static 'draw_files/leaflet.draw.css'%}">
+
+    <script src="{% static 'draw_files/Toolbar.js'%}"></script>
+    <script src="{% static 'draw_files/Tooltip.js'%}"></script>
+
+    <script src="{% static 'draw_files/GeometryUtil.js'%}"></script>
+    <script src="{% static 'draw_files/LatLngUtil.js'%}"></script>
+    <script src="{% static 'draw_files/LineUtil.Intersect.js'%}"></script>
+    <script src="{% static 'draw_files/Polygon.Intersect.js'%}"></script>
+    <script src="{% static 'draw_files/Polyline.Intersect.js'%}"></script>
+    <script src="{% static 'draw_files/TouchEvents.js'%}"></script>
+
+    <script src="{% static 'draw_files/DrawToolbar.js'%}"></script>
+    <script src="{% static 'draw_files/Draw.Feature.js'%}"></script>
+    <script src="{% static 'draw_files/Draw.SimpleShape.js'%}"></script>
+    <script src="{% static 'draw_files/Draw.Polyline.js'%}"></script>
+    <script src="{% static 'draw_files/Draw.Marker.js'%}"></script>
+    <script src="{% static 'draw_files/Draw.Circle.js'%}"></script>
+    <script src="{% static 'draw_files/Draw.CircleMarker.js'%}"></script>
+    <script src="{% static 'draw_files/Draw.Polygon.js'%}"></script>
+    <script src="{% static 'draw_files/Draw.Rectangle.js'%}"></script>
+
+    <script src="{% static 'draw_files/EditToolbar.js'%}"></script>
+    <script src="{% static 'draw_files/EditToolbar.Edit.js'%}"></script>
+    <script src="{% static 'draw_files/EditToolbar.Delete.js'%}"></script>
+
+    <script src="{% static 'draw_files/Control.Draw.js'%}"></script>
+
+    <script src="{% static 'draw_files/Edit.Poly.js'%}"></script>
+    <script src="{% static 'draw_files/Edit.SimpleShape.js'%}"></script>
+    <script src="{% static 'draw_files/Edit.Rectangle.js'%}"></script>
+    <script src="{% static 'draw_files/Edit.Marker.js'%}"></script>
+    <script src="{% static 'draw_files/Edit.CircleMarker.js'%}"></script>
+    <script src="{% static 'draw_files/Edit.Circle.js'%}"></script>
+
+    <script src="{% static 'draw_files/jquery-1.7.2.js'%}"></script>
+    <script src="{% static 'draw_files/jquery.cookie.js'%}"></script>
+
+</head>
+<body>
+<div id="map" style="width: 800px; height: 600px;float:left; border: 1px solid #ccc"></div>
+<div id="attr" style="width: 400px;height: 600px; float:right;border: 1px solid #ccc;background:#ccc">
+    <div style="width: 400px;height: 50px;margin: 20px">
+        <label>属性：</label>
+    </div>
+    <div style="width: 400px;height: 50px;margin: 20px">
+        <label>FID：</label>
+        <input type='input' type='text' id='fid'>
+    </div>
+    <div style="width: 400px;height: 50px;margin: 20px">
+        <label>name：</label>
+        <input type='input' type='text' id='name'>
+    </div>
+    <div style="width: 400px;height: 50px;margin: 20px">
+        <label>total：</label>
+        <input type='input' type='text' id='total'>
+    </div>
+    <div style="width: 400px;height: 50px;margin: 20px">
+        <label>average：</label>
+        <input type='input' type='text' id='average'>
+    </div>
+    <div style="width: 400px;height: 50px;margin: 20px">
+        <input type='button' id='insert' value='新增'>
+    </div>
+</div>
+<script>
+    //线上线下访问url不同，可变配置提出
+    var baseurl ='http://127.0.0.1:5000/';
+    var gaodeVerUrl = 'http://webrd01.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scale=1&style=8',
+            gaodeVer = L.tileLayer(gaodeVerUrl, { maxZoom: 18}),
+            map = new L.Map('map', { center: new L.LatLng(39.909921,116.381948), zoom: 12 }),
+            drawnItems = L.featureGroup().addTo(map);
+    var wmsOptions = {
+        layers: 'community_price',
+        format: 'image/png',
+        transparent: true,
+        // 查询函数
+        // CQL_FILTER : "name='太阳宫'"
+    };
+    var wmsLayer = L.tileLayer.wms(baseurl+'getwmts?', wmsOptions);
+    wmsLayer.addTo(map);
+    L.control.layers({
+        '高德矢量': gaodeVer.addTo(map),
+        '高德影像': L.tileLayer('https://webst01.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}', {})
+    }, { '绘制图层': drawnItems,'瓦片图层':wmsLayer }, { position: 'topleft', collapsed: false }).addTo(map);
+    map.addControl(new L.Control.Draw({
+        edit: {
+            featureGroup: drawnItems,
+            poly: {
+                allowIntersection: false
+            }
+        },
+        draw: {
+            polygon: {
+                allowIntersection: false,
+                showArea: true
+            }
+        }
+    }));
+
+    map.on(L.Draw.Event.CREATED, function (event) {
+        var layer = event.layer;
+        drawnItems.addLayer(layer);
+    });
+
+    $('#insert').click(function() {
+        // 构造WFS请求
+        var fid_txt = $('#fid').val();
+        var name_txt = $('#name').val();
+        var total_txt = $('#total').val();
+        var average_txt = $('#average').val();
+
+        var latlngs = drawnItems.getLayers()[0].editing.latlngs[0][0];
+        // console.log(latlngs);
+        var coord_txt = '';
+        for (var i = 0; i < latlngs.length; i++) {
+            coord_txt = coord_txt + latlngs[i]['lng'].toFixed(6) + ','+latlngs[i]['lat'].toFixed(6) +' '
+        }
+        coord_txt = coord_txt +latlngs[0]['lng'].toFixed(6)+','+latlngs[0]['lat'].toFixed(6);
+        var gml_txt = '<?xml version="1.0" encoding="GBK"?>\n\
+<wfs:Transaction service="WFS" version="1.0.0"\n\
+                 xmlns:wfs="http://www.opengis.net/wfs"\n\
+                 xmlns:fangjia="http://www.fangjia"\n\
+                 xmlns:gml="http://www.opengis.net/gml"\n\
+                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"\n\
+                 xsi:schemaLocation="http://www.opengis.net/wfs http://schemas.opengis.net/wfs/1.0.0/WFS-transaction.xsd http://www.fangjia http://localhost:8080/geoserver/wfs/DescribeFeatureType?typename=fangjia:community_price">\n\
+  <wfs:Insert>\n\
+    <fangjia:community_price>\n\
+      <fangjia:the_geom>\n\
+        <gml:MultiPolygon srsName="http://www.opengis.net/gml/srs/epsg.xml#4326"><gml:polygonMember><gml:Polygon><gml:outerBoundaryIs><gml:LinearRing><gml:coordinates xmlns:gml="http://www.opengis.net/gml" decimal="." cs="," ts=" ">'+coord_txt+'</gml:coordinates></gml:LinearRing></gml:outerBoundaryIs></gml:Polygon></gml:polygonMember></gml:MultiPolygon>\n\
+      </fangjia:the_geom>\n\
+      <fangjia:name>'+name_txt+'</fangjia:name>\n\
+      <fangjia:total>'+total_txt+'</fangjia:total>\n\
+      <fangjia:average>'+average_txt+'</fangjia:average>\n\
+    </fangjia:community_price>\n\
+  </wfs:Insert>\n\
+</wfs:Transaction>\n\
+'
+        console.log(gml_txt);
+
+        // 上传到geoserver
+        $.ajax({
+            type: 'POST',
+            url: '/postgml',
+            headers: {"X-CSRFToken": $.cookie('csrftoken')},  // 从Cookie取csrftoken，并设置到请求头中
+            {#contentType:'application/json',#}
+            data: {'gml':gml_txt},
+            {#dataType: 'json',#}
+            success: function(data){
+                console.log(data);
+                map.removeLayer(wmsLayer);
+                map.addLayer(wmsLayer);
+            },
+            error:function(data){
+                console.log(data);
+                map.removeLayer(wmsLayer);
+                map.addLayer(wmsLayer);
+            }
+        });
+    })
+
+</script>
+</body>
+</html>
