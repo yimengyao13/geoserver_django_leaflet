@@ -1,0 +1,2 @@
+# geoserver_django_leaflet
+地图服务用GeoServer发布，Django做后端转发服务请求，leaflet做前端渲染。
